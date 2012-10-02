@@ -82,7 +82,7 @@ typedef enum {
 
 @interface PrettyTableViewCellBackground : UIView
 
-@property (nonatomic, assign) PrettyTableViewCell *cell;
+@property (nonatomic, unsafe_unretained) PrettyTableViewCell *cell;
 @property (nonatomic, assign) CellBackgroundBehavior behavior;
 
 - (id) initWithFrame:(CGRect)frame behavior:(CellBackgroundBehavior)behavior;
@@ -187,25 +187,39 @@ typedef enum {
     CGContextRestoreGState(ctx);
 }
 
+- (void) drawSingleLineSeparator:(CGRect)rect 
+{
+    [PrettyDrawing drawLineAtHeight:CGRectGetMaxY(rect)
+                               rect:rect
+                              color:self.cell.customSeparatorColor
+                              width:1];
+}
+
+- (void) drawEtchedSeparator:(CGRect)rect
+{
+    [PrettyDrawing drawLineAtHeight:CGRectGetMaxY(rect)-1
+                               rect:rect
+                              color:self.cell.customSeparatorColor
+                              width:0.5];
+    [PrettyDrawing drawLineAtHeight:CGRectGetMaxY(rect)-0.5
+                               rect:rect
+                              color:[UIColor whiteColor] 
+                              width:1];
+
+}
+
 - (void) drawLineSeparator:(CGRect)rect 
 {
-    if (!self.cell.showsCustomSeparator) {
-        return;
+    switch (self.cell.customSeparatorStyle) 
+    {
+        case UITableViewCellSeparatorStyleSingleLine:
+            [self drawSingleLineSeparator:rect];
+            break;
+        case UITableViewCellSeparatorStyleSingleLineEtched:
+            [self drawEtchedSeparator:rect];
+        default:
+            break;
     }
-    
-    CGContextRef ctx = UIGraphicsGetCurrentContext();
-    CGContextSaveGState(ctx);
-
-    // draws body
-
-    CGContextMoveToPoint(ctx, CGRectGetMinX(rect), CGRectGetMaxY(rect));
-    CGContextAddLineToPoint(ctx, CGRectGetMaxX(rect), CGRectGetMaxY(rect));
- 
-    CGContextSetStrokeColorWithColor(ctx, self.cell.customSeparatorColor.CGColor);
-    CGContextSetLineWidth(ctx, 1);
-    CGContextStrokePath(ctx);
-    
-    CGContextRestoreGState(ctx);
 }
 
 - (void) fixShadow:(CGContextRef)ctx rect:(CGRect)rect
@@ -300,12 +314,20 @@ typedef enum {
     
     [self drawBackground:rect];
     
-    if (self.cell.position == PrettyTableViewCellPositionTop
-        || self.cell.position == PrettyTableViewCellPositionMiddle)
+    switch (self.cell.position)
     {
-        [self drawLineSeparator:CGRectMake(rect.origin.x, rect.origin.y,
-                                           rect.size.width, rect.size.height)];
-    } 
+        case PrettyTableViewCellPositionAlone:
+        case PrettyTableViewCellPositionBottom:
+            if (self.cell.tableViewIsGrouped) 
+            {
+                break;
+            }
+        default:
+            [self drawLineSeparator:CGRectMake(rect.origin.x, rect.origin.y,
+                                               rect.size.width, rect.size.height)];
+            break;
+            
+    }
 }
 
 
@@ -315,7 +337,6 @@ typedef enum {
 {
     self.cell = nil;
     
-    [super dealloc];
 }
 
 - (id) initWithFrame:(CGRect)frame behavior:(CellBackgroundBehavior)bbehavior 
@@ -341,24 +362,16 @@ typedef enum {
 @implementation PrettyTableViewCell
 @synthesize position, dropsShadow, borderColor, tableViewBackgroundColor;
 @synthesize customSeparatorColor, selectionGradientStartColor, selectionGradientEndColor;
-@synthesize cornerRadius, showsCustomSeparator;
+@synthesize cornerRadius;
 @synthesize customBackgroundColor, gradientStartColor, gradientEndColor;
-@synthesize shadowOpacity;
+@synthesize shadowOpacity, customSeparatorStyle;
 
 
 - (void) dealloc
 {
     [self.contentView removeObserver:self forKeyPath:@"frame"];
-    self.borderColor = nil;
     self.tableViewBackgroundColor = nil;
-    self.customSeparatorColor = nil;
-    self.selectionGradientStartColor = nil;
-    self.selectionGradientEndColor = nil;
-    self.customBackgroundColor = nil;
-    self.gradientStartColor = nil;
-    self.gradientEndColor = nil;
     
-    [super dealloc];
 }
 
 - (void)initializeVars
@@ -369,11 +382,11 @@ typedef enum {
     self.borderColor = default_border_color;
     self.tableViewBackgroundColor = [UIColor clearColor];
     self.customSeparatorColor = default_separator_color;
-    self.showsCustomSeparator = YES;
     self.selectionGradientStartColor = default_selection_gradient_start_color;
     self.selectionGradientEndColor = default_selection_gradient_end_color;
     self.cornerRadius = default_radius;
     self.shadowOpacity = default_shadow_opacity;
+    self.customSeparatorStyle = UITableViewCellSeparatorStyleSingleLine;
 }
 
 - (void)commonInit {
@@ -384,13 +397,11 @@ typedef enum {
                                                                                     behavior:CellBackgroundBehaviorNormal];
     bg.cell = self;
     self.backgroundView = bg;
-    [bg release];
     
     bg = [[PrettyTableViewCellBackground alloc] initWithFrame:self.frame
                                                      behavior:CellBackgroundBehaviorSelected];
     bg.cell = self;
     self.selectedBackgroundView = bg;
-    [bg release];
     
     [self initializeVars];
 }
@@ -504,10 +515,6 @@ typedef enum {
 
 - (void) setTableViewBackgroundColor:(UIColor *)aBackgroundColor 
 {
-    [aBackgroundColor retain];
-    if (tableViewBackgroundColor != nil) {
-        [tableViewBackgroundColor release];
-    }
     tableViewBackgroundColor = aBackgroundColor;
     
     self.backgroundView.backgroundColor = aBackgroundColor;
@@ -581,7 +588,7 @@ typedef enum {
     maskLayer.frame = maskRect;
     maskLayer.path = maskPath.CGPath;
 
-    return [maskLayer autorelease];
+    return maskLayer;
 }
 
 - (BOOL) dropsShadow 
@@ -611,7 +618,7 @@ typedef enum {
     NSArray *colors = [NSArray arrayWithObjects:(id)self.selectionGradientStartColor.CGColor, (id)self.selectionGradientEndColor.CGColor, nil];
     CGColorSpaceRef colorSpace = CGColorSpaceCreateDeviceRGB();
     CGGradientRef gradient = CGGradientCreateWithColors(colorSpace, 
-                                                        (CFArrayRef) colors, locations);
+                                                        (__bridge CFArrayRef) colors, locations);
     CGColorSpaceRelease(colorSpace);
     
     return gradient;
@@ -629,12 +636,32 @@ typedef enum {
     NSArray *colors = [NSArray arrayWithObjects:(id)self.gradientStartColor.CGColor, (id)self.gradientEndColor.CGColor, nil];
     CGColorSpaceRef colorSpace = CGColorSpaceCreateDeviceRGB();
     CGGradientRef gradient = CGGradientCreateWithColors(colorSpace, 
-                                                        (CFArrayRef) colors, locations);
+                                                        (__bridge CFArrayRef) colors, locations);
     CGColorSpaceRelease(colorSpace);
     
     return gradient;
 }
 
+#pragma mark - Deprecated stuff
 
+- (BOOL) showsCustomSeparator
+{
+    return self.customSeparatorStyle != UITableViewCellSeparatorStyleNone;
+}
+
+- (void) setShowsCustomSeparator:(BOOL)showsCustomSeparator
+{
+    switch (showsCustomSeparator)
+    {
+        case YES:
+            self.customSeparatorStyle = UITableViewCellSeparatorStyleSingleLine;
+            break;
+        case NO:
+            self.customSeparatorStyle = UITableViewCellSeparatorStyleNone;
+            break;            
+    }
+    
+    
+}
 
 @end

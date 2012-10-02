@@ -50,12 +50,26 @@ typedef enum {
  
  ### Using it
  
- In your `dataSource` `tableView:cellForRowAtIndexPath:` body, change all
+ 1. In your `dataSource` `tableView:cellForRowAtIndexPath:` body, change all
  references to `UITableViewCell` to `PrettyTableViewCell`, and add this call:
  
     [cell prepareForTableView:tableView indexPath:indexPath];
  
- Just by doing that you'll have a nice cell, like the cells below:
+ 2. Implement `tableView:heightForRowAtIndexPath:`, from
+ `UITableView` delegate protocol, and add the result of calling 
+ tableView:neededHeightForIndexPath: to your desired height.
+ 
+    For example:
+ 
+        -(CGFloat) tableView:(UITableView *)tableView 
+        heightForRowAtIndexPath:(NSIndexPath *)indexPath 
+        {
+            return tableView.rowHeight + [PrettyTableViewCell 
+                tableView:tableView neededHeightForIndexPath:indexPath];
+        }
+ 
+ 
+ Doing that you'll have nice cells, like these:
  
  ![](../docs/Screenshots/cells.png)
  
@@ -129,19 +143,19 @@ typedef enum {
  `backgroundColor` property.
  
  Change this property to override the background color in plain table views. */
-@property (nonatomic, retain) UIColor *customBackgroundColor;
+@property (nonatomic, strong) UIColor *customBackgroundColor;
 
 /** Specifies the background gradient start color to use. */
-@property (nonatomic, retain) UIColor *gradientStartColor;
+@property (nonatomic, strong) UIColor *gradientStartColor;
 
 /** Specifies the background gradient end color to use. */
-@property (nonatomic, retain) UIColor *gradientEndColor;
+@property (nonatomic, strong) UIColor *gradientEndColor;
 
 /** Specifies the color used for the cell's border. 
  
  If dropsShadow is set to `YES`, borderColor will be ignored. This property
  has a gray color by default. */
-@property (nonatomic, retain) UIColor *borderColor;
+@property (nonatomic, strong) UIColor *borderColor;
 
 /** Specifies the radio used for the cell's corners. 
  
@@ -151,18 +165,26 @@ typedef enum {
 /** Specifies the color used for the tableView's background. 
  
  This property has a clearColor by default.  */
-@property (nonatomic, retain) UIColor *tableViewBackgroundColor;
+@property (nonatomic, strong) UIColor *tableViewBackgroundColor;
 
 /** Specifies if a custom separator should be drawn. 
  
- By default it's set to `YES`.*/
-@property (nonatomic, assign) BOOL showsCustomSeparator;
+ By default it's set to `YES`.
+ 
+ @bug **Deprecated** Use customSeparatorStyle instead.
+ */
+@property (nonatomic, assign) BOOL showsCustomSeparator __attribute__ ((deprecated));
+
+/** Specifies the style of the separator. 
+ 
+ By default it's set to `UITableViewCellSeparatorStyleSingleLine`.*/
+@property (nonatomic, assign) UITableViewCellSeparatorStyle customSeparatorStyle;
 
 
 /** Specifies the color used for the cell's separator line.
  
  This property has a light gray color by default. */
-@property (nonatomic, retain) UIColor *customSeparatorColor;
+@property (nonatomic, strong) UIColor *customSeparatorColor;
 
 
 /** Specifies the start color for the selection gradient. 
@@ -171,7 +193,7 @@ typedef enum {
  
  If UITableViewCell's `selectionStyle` property is set to 
  `UITableViewCellSelectionStyleNone`, no gradient will be shown. */
-@property (nonatomic, retain) UIColor *selectionGradientStartColor;
+@property (nonatomic, strong) UIColor *selectionGradientStartColor;
 
 /** Specifies the end color for the selection gradient. 
  
@@ -179,7 +201,7 @@ typedef enum {
  
  If UITableViewCell's `selectionStyle` property is set to 
  `UITableViewCellSelectionStyleNone`, no gradient will be shown. */
-@property (nonatomic, retain) UIColor *selectionGradientEndColor;
+@property (nonatomic, strong) UIColor *selectionGradientEndColor;
 
 
 /** @name Cell configuration */
@@ -225,7 +247,7 @@ typedef enum {
 @property (nonatomic, readonly) CGRect innerFrame;
 
 /** Returns a mask with the rounded corners. */
-@property (nonatomic, readonly) CAShapeLayer *mask;
+@property (weak, nonatomic, readonly) CAShapeLayer *mask;
 
 /** Returns a new gradient with the configured selection gradient colors. */
 - (CGGradientRef) newSelectionGradient;
